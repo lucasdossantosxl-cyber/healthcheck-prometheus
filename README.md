@@ -1,5 +1,7 @@
 # Healthcheck com Prometheus e Grafana
 
+[![CI](https://github.com/lucasdossantosxl-cyber/healthcheck-prometheus/actions/workflows/ci.yml/badge.svg)](https://github.com/lucasdossantosxl-cyber/healthcheck-prometheus/actions/workflows/ci.yml)
+
 Projeto de portfólio DevOps/SRE: um checker Python consulta URLs em paralelo,
 expõe métricas e permite acompanhar falhas e recuperação em um dashboard pronto.
 Cada alvo tem um loop independente. O checker usa GET HTTP, não ping ICMP.
@@ -50,6 +52,8 @@ de disponibilidade e falhas começam a aparecer.
 Edite `config.yaml` e reinicie somente o checker com `docker compose restart checker`.
 `interval_seconds` e `timeout_seconds` devem ser positivos e finitos. Os nomes
 dos alvos devem ser únicos. URLs precisam ser HTTP(S), sem credenciais.
+Chaves duplicadas e opções desconhecidas são rejeitadas para detectar erros
+de digitação antes de iniciar o monitoramento.
 Sucesso significa que o status recebido é exatamente o `expected_status`.
 Redirects não são seguidos. O timeout limita toda a checagem; respostas são
 lidas em streaming para evitar baixar corpos grandes. Logs usam apenas o nome
@@ -103,6 +107,11 @@ A próxima checagem bem-sucedida restaura o valor 1. O alerta se resolve na
 próxima avaliação após o scrape de recuperação. O contador de falhas continua
 preservando o histórico.
 
+Se o próprio checker parar, o Prometheus dispara **`CheckerDown`** após 1 minuto
+sem conseguir coletar `/metrics`. Essa regra usa `up{job="healthcheck"}`,
+separando falhas de coleta das falhas de uma URL monitorada. Para experimentar,
+use `docker compose stop checker` e depois `docker compose start checker`.
+
 ## Testes locais sem internet
 
 A instalação de dependências requer internet; os testes usam apenas mocks.
@@ -117,6 +126,50 @@ python -m pytest -q
 Os testes cobrem YAML inválido, valores e URLs inválidas, nomes duplicados,
 status esperado, falhas HTTP, conexão, timeout, recuperação e parada do loop.
 SIGTERM/SIGINT interrompem novas checagens e aguardam a atual até seu timeout.
+
+As regras de alerta também possuem testes de espera, disparo e recuperação.
+Com `promtool` 3.3.0 disponível, execute na raiz do projeto:
+
+```bash
+promtool check rules prometheus/alerts.yml
+promtool test rules prometheus/tests/alerts.test.yml
+```
+
+Como alternativa, use apenas o serviço do Prometheus do Compose:
+
+```bash
+docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus test rules /etc/prometheus/tests/alerts.test.yml
+```
+
+## Integração contínua
+
+A CI executa os testes Python em 3.12 e 3.13, valida as regras com `promtool`
+e sobe os quatro serviços em um runner do GitHub. O teste de integração verifica
+as métricas, o scrape e a conexão do Grafana, para o demo-app, aguarda `TargetDown`
+disparar e confirma a recuperação. Depois repete a falha e recuperação do próprio
+checker para testar `CheckerDown`. O laboratório é encerrado ao final, inclusive
+quando uma verificação falha. A execução pode ser acompanhada na aba **Actions**.
+
+O mesmo teste pode ser executado localmente, dentro desta pasta:
+
+```bash
+python3 scripts/smoke_test.py preflight
+docker compose up --build -d --wait
+python3 scripts/smoke_test.py healthy
+docker compose stop demo-app
+python3 scripts/smoke_test.py failure
+docker compose start demo-app
+python3 scripts/smoke_test.py recovery
+docker compose stop checker
+python3 scripts/smoke_test.py checker-failure
+docker compose start checker
+python3 scripts/smoke_test.py checker-recovery
+docker compose down
+```
+
+O script usa somente a biblioteca padrão do Python e os endereços locais do
+laboratório. Ele espera cada condição com timeout e sai com erro se a validação
+falhar; não cria nem encerra serviços por conta própria.
 
 ## Encerrar
 

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Instalar dependências em venv
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r requirements-dev.txt
+      - name: Testar o checker
+        run: |
+          .venv/bin/python -m pip check
+          .venv/bin/python -m pytest -q
+
+  compose:
+    name: Compose e alertas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validar configuração e regras do Prometheus
+        run: |
+          docker compose config --quiet
+          docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus check config /etc/prometheus/prometheus.yml
+          docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus test rules /etc/prometheus/tests/alerts.test.yml
+      - name: Subir os quatro serviços
+        run: |
+          python3 scripts/smoke_test.py preflight
+          docker compose up --build -d --wait --wait-timeout 120
+      - name: Validar métricas, scrape e Grafana
+        run: python3 scripts/smoke_test.py healthy
+      - name: Simular falha e aguardar alerta
+        run: |
+          docker compose stop demo-app
+          python3 scripts/smoke_test.py failure
+      - name: Confirmar recuperação e resolução do alerta
+        run: |
+          docker compose start demo-app
+          python3 scripts/smoke_test.py recovery
+      - name: Simular falha e recuperação do próprio checker
+        run: |
+          docker compose stop checker
+          python3 scripts/smoke_test.py checker-failure
+          docker compose start checker
+          python3 scripts/smoke_test.py checker-recovery
+      - name: Logs para diagnóstico
+        if: failure()
+        run: docker compose logs --no-color --tail=100
+      - name: Encerrar laboratório
+        if: always()
+        run: |
+          docker compose down
+          test -z "$(docker compose ps -aq)"
