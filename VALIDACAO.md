@@ -46,9 +46,8 @@ configurada apenas neste repositório, com o endereço noreply da conta pessoal.
 A revisão dos arquivos versionados não encontrou credenciais ou referências
 corporativas. O código foi organizado em commits locais separados.
 
-A tentativa de criar o repositório público falhou com:
+A tentativa inicial de criar o repositório público pela integração falhou com:
 `GraphQL: Resource not accessible by integration (createRepository)`.
-Não houve push. É necessário criar um repositório vazio chamado
-`healthcheck-prometheus` na conta pessoal e disponibilizar acesso de escrita,
-ou publicar a partir do computador local com uma autenticação que permita criar
-repositórios. Nenhuma configuração global ou credencial foi alterada.
+Após o usuário criar o repositório vazio, o push da branch `main` foi realizado
+com sucesso em https://github.com/lucasdossantosxl-cyber/healthcheck-prometheus.
+O repositório é público. Nenhuma configuração global ou credencial foi alterada.
