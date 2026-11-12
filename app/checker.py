@@ -13,6 +13,14 @@ from app.config import Target, load_config
 LOG = logging.getLogger(__name__)
 
 
+def configure_logging():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    # httpx registra a URL completa em INFO; httpcore também pode expor detalhes
+    # da requisição em DEBUG. Os logs operacionais usam apenas o nome do alvo.
+    for name in ('httpx', 'httpcore'):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 class Metrics:
     def __init__(self, targets, registry=REGISTRY):
         self.up = Gauge('healthcheck_up', 'Último resultado: sucesso=1, falha=0', ['target'], registry=registry)
@@ -87,7 +95,7 @@ async def run(config):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    configure_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='config.yaml')
     args = parser.parse_args()

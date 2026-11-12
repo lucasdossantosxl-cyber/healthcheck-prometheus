@@ -5,7 +5,7 @@ import httpx
 import pytest
 from prometheus_client import CollectorRegistry
 
-from app.checker import Metrics, check_target, monitor
+from app.checker import Metrics, check_target, configure_logging, monitor
 from app.config import Target
 
 
@@ -77,3 +77,37 @@ def test_total_timeout_and_stop():
     asyncio.run(scenario())
     assert registry.get_sample_value('healthcheck_up', {'target': 'demo'}) == 0
     assert registry.get_sample_value('healthcheck_checks_total', {'target': 'demo', 'result': 'failure'}) == 1
+
+
+@pytest.mark.parametrize('response_status', [200, 503, None])
+def test_operational_logs_do_not_expose_url(response_status, caplog):
+    target = Target('demo', 'https://example.com/private-path?token=private-query-value', 200)
+    metrics = Metrics([target], CollectorRegistry())
+
+    def handler(request):
+        if response_status is None:
+            # Mensagens de erros de clientes podem conter URLs e dados sensíveis.
+            raise httpx.ConnectError(f'Failed to connect to {request.url}', request=request)
+        return httpx.Response(response_status)
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler), trust_env=False) as client:
+            await check_target(client, target, metrics)
+
+    # Usa a mesma configuração do executável, inclusive sob captura em DEBUG.
+    # Os contextos restauram os níveis das bibliotecas ao encerrar o teste.
+    with (
+        caplog.at_level(logging.DEBUG),
+        caplog.at_level(logging.DEBUG, logger='httpx'),
+        caplog.at_level(logging.DEBUG, logger='httpcore'),
+    ):
+        configure_logging()
+        asyncio.run(scenario())
+
+    assert 'example.com' not in caplog.text
+    assert 'private-path' not in caplog.text
+    assert 'private-query-value' not in caplog.text
+    assert f'target=demo status={response_status or 0}' in caplog.text
+    assert f'sucesso={response_status == 200}' in caplog.text
+    if response_status is None:
+        assert 'target=demo erro=ConnectError' in caplog.text
