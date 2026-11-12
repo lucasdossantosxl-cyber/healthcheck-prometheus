@@ -38,3 +38,17 @@ reiniciar o demo e verificar a resolução do alerta. Finalize com
 
 O projeto foi construído usando Python 3.12 para manter a mesma versão no host
 de testes e na imagem. O Python 3.15 mencionado no pedido não foi usado nem validado.
+
+## Git e publicação
+
+Conta autenticada conferida: `lucasdossantosxl-cyber`. A identidade Git foi
+configurada apenas neste repositório, com o endereço noreply da conta pessoal.
+A revisão dos arquivos versionados não encontrou credenciais ou referências
+corporativas. O código foi organizado em commits locais separados.
+
+A tentativa de criar o repositório público falhou com:
+`GraphQL: Resource not accessible by integration (createRepository)`.
+Não houve push. É necessário criar um repositório vazio chamado
+`healthcheck-prometheus` na conta pessoal e disponibilizar acesso de escrita,
+ou publicar a partir do computador local com uma autenticação que permita criar
+repositórios. Nenhuma configuração global ou credencial foi alterada.
