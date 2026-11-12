@@ -1,21 +1,24 @@
 # Relatório de validação — 12/11/2026
 
-Executado em um ambiente cloud Linux com Python 3.12.14, não no Mac do usuário.
+Executado em um ambiente cloud Linux com Python 3.12.14 e, posteriormente,
+em runners Ubuntu 24.04 do GitHub Actions com Python 3.12 e 3.13.
+Não foi executado no Mac do usuário.
 
 | Etapa | Resultado |
 | --- | --- |
-| Testes pytest | **23 passaram**, com mocks e sem chamadas à internet |
+| Testes pytest | **50 passaram**, com mocks e sem chamadas à internet; também executados em Python 3.12 e 3.13 na CI |
 | Dependências | `pip check`: sem dependências quebradas |
 | Configuração | Arquivos YAML e JSON parseados com sucesso |
 | Portas antes da execução | 3000, 8000, 8080 e 9090 livres |
 | Build do checker | **Passou**, após fornecer o certificado público do proxy cloud via secret temporário de build |
-| Compose com quatro serviços saudáveis | **Bloqueado**: `no space left on device` ao criar containers; filesystem do ambiente com 7,9 GB, 100% ocupado naquela etapa |
+| Compose com quatro serviços saudáveis | **Passou na CI** com build e healthchecks; a tentativa inicial neste ambiente cloud foi bloqueada pelo disco de 7,9 GB |
 | Quatro métricas em `/metrics` | **Passou** executando checker e demo como processos Python locais |
 | Falha e recuperação do checker | **Passou**: parar demo mudou `healthcheck_up` para 0; iniciar demo restaurou 1 |
 | SIGTERM do checker | **Passou**: servidor encerrado e processo com código de saída 0 |
-| Prometheus target UP / alerta firing | **Passou em execução local**, com Prometheus 3.3.0; `TargetDown` disparou e se resolveu após a recuperação |
-| Grafana com dashboard e dados | **Passou em execução local**, com Grafana 11.6.0; três capturas reais incluídas em `docs/` |
-| Encerramento | `docker compose down` executado sem `-v`; `docker compose ps -a` vazio; processos locais encerrados |
+| Regras de alerta | **Passou**: `promtool` 3.3.0 validou duas regras e três cenários de espera, disparo e recuperação |
+| Prometheus target UP / alerta firing | **Passou na CI**: `TargetDown` e `CheckerDown` dispararam nas respectivas falhas e se resolveram após recuperação; `TargetDown` também validado localmente |
+| Grafana com dashboard e dados | **Passou**: dashboard e datasource conectados na CI; interface validada localmente com três capturas reais incluídas em `docs/` |
+| Encerramento | `docker compose down` executado sem `-v`, com confirmação de ausência dos containers do projeto, na CI e na tentativa local; processos locais encerrados |
 
 ## Erros reais encontrados
 
@@ -29,12 +32,13 @@ Executado em um ambiente cloud Linux com Python 3.12.14, não no Mac do usuário
    Os recursos criados por este Compose foram encerrados. Não foram executados
    comandos globais de limpeza nem removidos os volumes.
 
-## Pendências para validar no computador local
+## Limite do ambiente cloud local
 
-A execução conjunta dos quatro containers pelo Compose ainda precisa ser validada
-em uma máquina com espaço suficiente. Execute o procedimento do README para
-confirmar também rede, mounts e healthchecks dos containers. A coleta, o alerta
-e o dashboard já foram validados como processos locais, conforme descrito abaixo.
+A execução conjunta dos quatro containers foi validada na CI, incluindo rede,
+mounts e healthchecks. O limite de disco continua impedindo repetir esse teste
+neste ambiente cloud local. A coleta, o alerta e o dashboard também foram
+validados como processos locais, conforme descrito abaixo. Para executar o
+laboratório no computador pessoal, siga o procedimento do README.
 
 ## Capturas reais do dashboard
 
@@ -68,6 +72,37 @@ ao final.
 
 O projeto foi construído usando Python 3.12 para manter a mesma versão no host
 de testes e na imagem. O Python 3.15 mencionado no pedido não foi usado nem validado.
+
+## Melhorias posteriores
+
+- Configuração: rejeita chaves YAML duplicadas, opções desconhecidas e URLs
+  HTTP malformadas antes de iniciar. URLs IPv6 e hostnames Unicode têm testes
+  de compatibilidade. Falhas de UTF-8 e números grandes geram erros de validação.
+- Logs: as bibliotecas HTTP deixam de registrar URLs completas em INFO/DEBUG.
+  Testes cobrem sucesso, erro HTTP e falha de conexão, preservando os logs do
+  alvo e resultado sem expor caminho ou query da URL.
+- Monitoramento: `CheckerDown` detecta falhas de coleta do próprio checker,
+  enquanto `TargetDown` continua acompanhando a URL. Os testes de regras verificam
+  que ambos aguardam um minuto, disparam e se resolvem na recuperação.
+- Automação: a CI usa actions fixadas por SHA, Node.js 24 e Ubuntu 24.04.
+  O script de smoke test verifica portas antes de subir o Compose e usa timeouts
+  explícitos; o teste negativo confirmou que serviços ausentes provocam falha,
+  em vez de um resultado positivo indevido.
+
+### Resultado da CI completa
+
+[Execução aprovada no GitHub Actions](https://github.com/lucasdossantosxl-cyber/healthcheck-prometheus/actions/runs/43251506320),
+referente ao commit `df81710bfad7ec19c90deb1daeb9e7d418db60ea`:
+
+- Python 3.12: 50 testes aprovados e dependências verificadas.
+- Python 3.13: 50 testes aprovados e dependências verificadas.
+- Prometheus: configuração e testes de regras aprovados com `promtool` 3.3.0.
+- Compose: quatro serviços saudáveis após build.
+- Integração: quatro métricas, scrape UP, disponibilidade com dados e dashboard
+  provisionado com conexão ao datasource confirmados.
+- Falha e recuperação do demo-app: alerta `TargetDown` confirmado e resolvido.
+- Falha e recuperação do checker: alerta `CheckerDown` confirmado e resolvido.
+- Encerramento: Compose finalizado, sem containers do projeto restantes.
 
 ## Git e publicação
 
