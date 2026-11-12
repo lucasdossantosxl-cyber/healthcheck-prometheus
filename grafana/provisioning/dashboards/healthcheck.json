@@ -2,7 +2,7 @@
   "uid": "healthcheck-overview",
   "title": "Healthcheck \u2022 Prometheus",
   "schemaVersion": 40,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "tags": [
     "sre",
@@ -150,7 +150,27 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "decimals": 2
+          "decimals": 2,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
+            ]
+          }
         },
         "overrides": []
       },
