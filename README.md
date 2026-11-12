@@ -132,4 +132,17 @@ do socket Docker ou de diretórios externos ao projeto, nem containers privilegi
 
 ## Prints do dashboard
 
-Adicione aqui um print do estado normal, outro da falha e outro da recuperação.
+Capturas reais de uma execução local com dados do checker e do Prometheus.
+O método de execução está descrito em [VALIDACAO.md](VALIDACAO.md).
+
+**Estado normal:** demo-app disponível, com latência e disponibilidade sendo coletadas.
+
+![Dashboard com demo-app disponível](docs/dashboard-normal.png)
+
+**Falha:** demo-app parado e identificado como indisponível; as falhas aparecem no histórico.
+
+![Dashboard com demo-app indisponível](docs/dashboard-falha.png)
+
+**Recuperação:** demo-app disponível novamente; o histórico das falhas permanece visível.
+
+![Dashboard após a recuperação do demo-app](docs/dashboard-recuperacao.png)
