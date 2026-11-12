@@ -1,0 +1,7 @@
+interval_seconds: 15
+timeout_seconds: 5
+targets:
+  - name: demo-app
+    url: http://demo-app:8080
+    expected_status: 200
+# Exemplos opcionais: https://example.com e https://httpbin.org/status/200
