@@ -1,0 +1,11 @@
+groups:
+  - name: healthcheck
+    rules:
+      - alert: TargetDown
+        expr: healthcheck_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Alvo {{ $labels.target }} indisponível'
+          description: 'A checagem falhou por pelo menos um minuto.'
